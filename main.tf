@@ -27,8 +27,9 @@ resource "aws_lambda_function" "mypython_lambda" {
   filename = "main.zip"
   function_name = "mypython_lambda_test"
   role = aws_iam_role.mypython_lambda_role.arn
-  handler = "lambda_handler"
+  handler = "main.lambda_handler"
   runtime = "python3.8"
+  source_code_hash = data.archive_file.myzip.output_base64sha256
 }
 
 resource "aws_iam_role" "mypython_lambda_role" {
@@ -70,3 +71,20 @@ EOF
 #     }
 #     EOF
 # }
+
+resource "aws_sqs_queue" "main_queue" {
+  name = "my-main-queue"
+  delay_seconds = 30
+  max_message_size = 26244
+}
+
+resource "aws_sqs_queue" "dlq_queue" {
+  name = "my-dlq-queue"
+  delay_seconds = 30
+  max_message_size = 26244
+}
+
+resource "aws_lambda_event_source_mapping" "sqs-lambda-trigger" {
+  event_source_arn = aws_sqs_queue.main_queue.arn
+  function_name = aws_lambda_function.mypython_lambda.arn
+}
